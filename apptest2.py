@@ -152,7 +152,8 @@ if st.button('Tampilkan Hasil Sentimen'):
         st.subheader('Hasil Sentimen :')
         for review, score, polarity, affected_words in scores:
             st.write(f"Sentimen: {polarity}")
-            st.write(data[['content', 'Score_polarity', 'Polarity','Sentiment']])
+            st.write(data[['content', 'Score', 'Polarity', 'Sentiment']])
+
     else:
         st.warning("Harap masukkan ulasan sebelum menekan tombol 'Tampilkan Hasil Sentimen'.")
 

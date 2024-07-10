@@ -2,7 +2,9 @@ streamlit
 pandas
 numpy
 nltk
-matplotlib
 scikit-learn
+matplotlib
+pickle-mixin
 Sastrawi
+openpyxl
 tqdm

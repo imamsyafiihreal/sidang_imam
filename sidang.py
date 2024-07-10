@@ -16,6 +16,7 @@ from sklearn.utils import shuffle
 from nltk.tokenize import word_tokenize
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from tqdm import tqdm
+import subprocess
 
 # Clone the GitHub repository
 repo_url = 'https://github.com/imamsyafiihreal/sidang_imam'

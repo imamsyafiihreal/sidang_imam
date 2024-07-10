@@ -1,0 +1,8 @@
+streamlit
+pandas
+numpy
+nltk
+matplotlib
+scikit-learn
+Sastrawi
+tqdm

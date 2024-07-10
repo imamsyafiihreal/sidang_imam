@@ -17,11 +17,11 @@ from nltk.tokenize import word_tokenize
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from tqdm import tqdm
 
-# Download resource NLTK yang dibutuhkan
+# Download necessary NLTK resources
 nltk.download('stopwords')
 nltk.download('punkt')
 
-# Fungsi bantu
+# Helper functions
 def clean_text(text):
     text = text.lower()
     text = re.sub(r'http\S+|www\S+|https\S+', '', text)
@@ -46,10 +46,10 @@ def sentiment_lexicon(text, lexicon_positive, lexicon_negative):
     score = 0
     affected_words = []
     for word in text.split():
-        if (lexicon_positive is not None and word in lexicon_positive):
+        if lexicon_positive is not None and word in lexicon_positive:
             score += lexicon_positive[word]
             affected_words.append((word, lexicon_positive[word], 'positive'))
-        elif (lexicon_negative is not None and word in lexicon_negative):
+        elif lexicon_negative is not None and word in lexicon_negative:
             score += lexicon_negative[word]
             affected_words.append((word, lexicon_negative[word], 'negative'))
     polarity = 'positive' if score > 0 else 'negative' if score < 0 else 'neutral'
@@ -90,14 +90,14 @@ def process_fold(X, y, train_index, test_index, model):
     cm = confusion_matrix(y_test, y_pred)
     return cm
 
-# Konfigurasi aplikasi Streamlit
+# Streamlit app configuration
 st.set_page_config(
     page_title="Analisis Sentimen Ulasan Aplikasi MPStore",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Terapkan CSS untuk styling
+# Apply CSS for styling
 st.markdown(
     """
     <style>
@@ -113,7 +113,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Tambahkan logo dan judul
+# Add logo and title
 logo_path = "imam.png"
 st.markdown(
     f"""
@@ -125,7 +125,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# Muat model jika tersedia
+# Load model if available
 model_path = 'sentiment_model.pkl'
 if os.path.exists(model_path):
     model = load_model(model_path)
@@ -137,11 +137,11 @@ else:
     lexicon_negative = read_lexicon('kamus/negative_lexicon.xlsx')
     st.error('File sentiment_model.pkl tidak ditemukan. Pastikan untuk menjalankan dan menyimpan model terlebih dahulu.')
 
-# Input pengguna untuk ulasan baru
+# User input for new reviews
 st.subheader('Analisis Ulasan Baru')
 user_input = st.text_area('Masukkan ulasan Anda (satu per baris)', '')
 
-# Tambahkan tombol "Tampilkan Hasil Sentimen" yang selalu ada
+# Add "Tampilkan Hasil Sentimen" button
 if st.button('Tampilkan Hasil Sentimen'):
     if user_input:
         scores = []
@@ -156,10 +156,10 @@ if st.button('Tampilkan Hasil Sentimen'):
     else:
         st.warning("Harap masukkan ulasan sebelum menekan tombol 'Tampilkan Hasil Sentimen'.")
 
-# Unggah file Excel untuk ulasan
+# Upload Excel file for reviews
 uploaded_file = st.file_uploader("Unggah file Excel dengan ulasan", type=["xlsx"])
 
-# Proses input pengguna atau file yang diunggah
+# Process user input or uploaded file
 if user_input or uploaded_file:
     if user_input:
         reviews = user_input.split('\n')
@@ -172,10 +172,10 @@ if user_input or uploaded_file:
             st.error('File Excel harus memiliki satu kolom dengan ulasan.')
 
     if st.button('Analisis Sentimen'):
-        # Bersihkan dan pra-proses teks
+        # Clean and preprocess text
         data['content'] = data['content'].astype(str).apply(clean_text)
 
-        kamus_normalisasi = pd.readexcel('kamus/kbba_komplit.xlsx').set_index('non_baku')['baku'].to_dict()
+        kamus_normalisasi = pd.read_excel('kamus/kbba_komplit.xlsx').set_index('non_baku')['baku'].to_dict()
         data['normalisasi'] = data['content'].apply(lambda x: normalisasi(x, kamus_normalisasi))
 
         stopwords_indonesian = pd.read_excel('kamus/stopword_dictionary.xlsx')['stopword'].tolist()
@@ -231,3 +231,38 @@ if user_input or uploaded_file:
         model_data = {'svm_model': svm_model, 'vectorizer': vectorizer, 'lexicon_positive': lexicon_positive, 'lexicon_negative': lexicon_negative}
         save_model(model_data, model_save_path)
         st.success(f'Model SVM disimpan ke {model_save_path}')
+
+# Additional functions for specific text normalization cases
+def cari_dan_normalisasi_tidak(teks, kamus):
+    if isinstance(teks, str):
+        kata_kata = teks.split()
+        hasil = []
+        i = 0
+        while i < len(kata_kata):
+            if kata_kata[i].lower() == 'tidak' and i + 1 < len(kata_kata):
+                frasa = f"{kata_kata[i]} {kata_kata[i+1]}"
+                hasil.append(kamus.get(frasa, frasa))
+                i += 2  # Skip the word after "tidak"
+            else:
+                hasil.append(kata_kata[i])
+                i += 1
+        return ' '.join(hasil)
+    return teks
+
+def pisahkan_imbuhan_nya(teks):
+    if isinstance(teks, str):
+        kata_kata = teks.split()
+        hasil = []
+        for kata in kata_kata:
+            if kata.endswith("nya"):
+                kata_dasar = kata[:-3]
+                imbuhan = "nya"
+                hasil.append(kata_dasar)
+                hasil.append(imbuhan)
+            else:
+                hasil.append(kata)
+        return ' '.join(hasil)
+    return teks
+
+# Load normalization dictionary for "tidak"
+kamus_normalisasi_tidak = pd.read_excel('kamus/kamus_tidak.xlsx').set_index('frasa')['normalisasi'].to_dict()

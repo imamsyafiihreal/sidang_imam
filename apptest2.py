@@ -151,9 +151,10 @@ if st.button('Tampilkan Hasil Sentimen'):
 
         st.subheader('Hasil Sentimen :')
         for review, score, polarity, affected_words in scores:
+            st.write(f"Ulasan: {review}")
+            st.write(f"Skor: {score}")
             st.write(f"Sentimen: {polarity}")
-            st.write(data[['content', 'Score', 'Polarity', 'Sentiment']])
-
+            st.write(f"Kata Terdampak: {affected_words}")
     else:
         st.warning("Harap masukkan ulasan sebelum menekan tombol 'Tampilkan Hasil Sentimen'.")
 
@@ -176,7 +177,7 @@ if user_input or uploaded_file:
         # Bersihkan dan pra-proses teks
         data['content'] = data['content'].astype(str).apply(clean_text)
 
-        kamus_normalisasi = pd.readexcel('kamus/kbba_komplit.xlsx').set_index('non_baku')['baku'].to_dict()
+        kamus_normalisasi = pd.read_excel('kamus/kbba_komplit.xlsx').set_index('non_baku')['baku'].to_dict()
         data['normalisasi'] = data['content'].apply(lambda x: normalisasi(x, kamus_normalisasi))
 
         stopwords_indonesian = pd.read_excel('kamus/stopword_dictionary.xlsx')['stopword'].tolist()

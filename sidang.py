@@ -30,8 +30,8 @@ nltk_data_path = os.path.join(repo_dir, 'nltk_data')
 nltk.data.path.append(nltk_data_path)
 
 # Sekarang unduh data yang diperlukan (ini akan mengambil dari direktori lokal)
-nltk.download('stopwords', download_dir=nltk_data_path)
-nltk.download('punkt', download_dir=nltk_data_path)
+nltk.download('stopwords', download_dir='imamsyafiihreal/sidang_imam/blob/main/nltk_data/corpora/punkt.zip')
+nltk.download('punkt', download_dir='imamsyafiihreal/sidang_imam/blob/main/nltk_data/tokenizers/stopwords.zip')
 
 # Contoh penggunaan data dari nltk_data_path
 stopwords = nltk.corpus.stopwords.words('english')

@@ -17,9 +17,13 @@ from nltk.tokenize import word_tokenize
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from tqdm import tqdm
 
-# Download resource NLTK yang dibutuhkan
-nltk.download('stopwords')
-nltk.download('punkt')
+# Tentukan lokasi direktori nltk_data lokal
+nltk_data_path = os.path.join(os.path.dirname(__file__), 'nltk_data')
+nltk.data.path.append(imamsyafiihreal/sidang_imam/tree/main/nltk_data)
+
+# Sekarang unduh data yang diperlukan (ini akan mengambil dari direktori lokal)
+nltk.download('stopwords', download_dir=imamsyafiihreal/sidang_imam/tree/main/nltk_data/corpora)
+nltk.download('punkt', download_dir=imamsyafiihreal/sidang_imam/tree/main/nltk_data/tokenizers)
 
 # Fungsi bantu
 def clean_text(text):

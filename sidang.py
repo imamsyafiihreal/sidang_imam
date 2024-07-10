@@ -17,14 +17,23 @@ from nltk.tokenize import word_tokenize
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from tqdm import tqdm
 
+# Clone the GitHub repository
+repo_url = 'https://github.com/imamsyafiihreal/sidang_imam'
+repo_dir = 'sidang_imam'
+
+if not os.path.exists(repo_dir):
+    subprocess.run(['git', 'clone', repo_url])
+
 # Tentukan lokasi direktori nltk_data lokal
-nltk_data_path = os.path.join(os.path.dirname(__file__), 'nltk_data')
-nltk.data.path.append(imamsyafiihreal/sidang_imam/tree/main/nltk_data)
+nltk_data_path = os.path.join(repo_dir, 'nltk_data')
+nltk.data.path.append(nltk_data_path)
 
 # Sekarang unduh data yang diperlukan (ini akan mengambil dari direktori lokal)
-nltk.download('stopwords', download_dir=imamsyafiihreal/sidang_imam/tree/main/nltk_data/corpora)
-nltk.download('punkt', download_dir=imamsyafiihreal/sidang_imam/tree/main/nltk_data/tokenizers)
+nltk.download('stopwords', download_dir=nltk_data_path)
+nltk.download('punkt', download_dir=nltk_data_path)
 
+# Contoh penggunaan data dari nltk_data_path
+stopwords = nltk.corpus.stopwords.words('english')
 # Fungsi bantu
 def clean_text(text):
     text = text.lower()

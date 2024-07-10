@@ -1,0 +1,14 @@
+stopword
+
+zok
+lpk
+zpk
+brr
+jrg
+vrz
+fnl
+ttk
+sgp
+
+an
+nya

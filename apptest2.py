@@ -90,39 +90,6 @@ def process_fold(X, y, train_index, test_index, model):
     cm = confusion_matrix(y_test, y_pred)
     return cm
 
-# Fungsi normalisasi untuk frasa "tidak"
-def cari_dan_normalisasi_tidak(teks, kamus):
-    if isinstance(teks, str):
-        kata_kata = teks.split()
-        hasil = []
-        i = 0
-        while i < len(kata_kata):
-            if kata_kata[i].lower() == 'tidak' and i + 1 < len(kata_kata):
-                frasa = f"{kata_kata[i]} {kata_kata[i+1]}"
-                hasil.append(kamus.get(frasa, frasa))
-                i += 2  # Lompat ke kata setelah frasa "tidak"
-            else:
-                hasil.append(kata_kata[i])
-                i += 1
-        return ' '.join(hasil)
-    return teks
-
-# Fungsi untuk memisahkan imbuhan "-nya"
-def pisahkan_imbuhan_nya(teks):
-    if isinstance(teks, str):
-        kata_kata = teks.split()
-        hasil = []
-        for kata in kata_kata:
-            if kata.endswith("nya"):
-                kata_dasar = kata[:-3]
-                imbuhan = "nya"
-                hasil.append(kata_dasar)
-                hasil.append(imbuhan)
-            else:
-                hasil.append(kata)
-        return ' '.join(hasil)
-    return teks
-
 # Konfigurasi aplikasi Streamlit
 st.set_page_config(
     page_title="Analisis Sentimen Ulasan Aplikasi MPStore",
@@ -169,9 +136,6 @@ else:
     lexicon_positive = read_lexicon('kamus/positive_lexicon.xlsx')
     lexicon_negative = read_lexicon('kamus/negative_lexicon.xlsx')
     st.error('File sentiment_model.pkl tidak ditemukan. Pastikan untuk menjalankan dan menyimpan model terlebih dahulu.')
-
-# Definisikan kamus normalisasi "tidak"
-kamus_normalisasi_tidak = pd.read_excel('kamus/kamus_tidak.xlsx').set_index('frasa')['normalisasi'].to_dict()
 
 # Input pengguna untuk ulasan baru
 st.subheader('Analisis Ulasan Baru')

@@ -17,9 +17,8 @@ from nltk.tokenize import word_tokenize
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
 from tqdm import tqdm
 
-# Download resource NLTK yang dibutuhkan
-nltk.download('stopwords')
-nltk.download('punkt')
+# Set the NLTK data path
+nltk.data.path.append('./nltk_data')
 
 # Fungsi bantu
 def clean_text(text):

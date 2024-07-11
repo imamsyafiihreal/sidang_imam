@@ -8,3 +8,4 @@ pickle-mixin
 Sastrawi
 openpyxl
 tqdm
+google-play-scraper

@@ -198,107 +198,33 @@ if st.button('Tampilkan Hasil Sentimen'):
         result_df['stemmed'] = result_df['content'].apply(lambda x: stemmer.stem(x))
         result_df['lexicon_sentiment'] = result_df['score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
 
-        st.write(result_df)
+        st.write(result_df[['content', 'lexicon_sentiment', 'affected_words']])
+
+        # Visualisasikan distribusi sentimen
+        st.subheader('Distribusi Sentimen')
+        sentiment_counts = result_df['lexicon_sentiment'].value_counts()
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
+        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
+        ax.set_xlabel('Sentimen', fontsize=12)
+        ax.set_ylabel('Jumlah', fontsize=12)
+        ax.set_title('Distribusi Sentimen', fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
+        st.pyplot(fig)
     else:
-        st.warning('Silakan masukkan ulasan untuk dianalisis.')
+        st.warning('Silakan masukkan ulasan untuk menganalisis sentimen.')
 
-# Fungsi untuk analisis batch
-st.subheader('Analisis Batch Ulasan dari File Excel')
-uploaded_file = st.file_uploader("Unggah file Excel dengan kolom 'content'", type=["xlsx"])
+# Sidebar untuk scraping ulasan dari Google Play Store
+st.sidebar.subheader('Scraping Ulasan dari Google Play Store')
+app_id_input = st.sidebar.text_input('Masukkan ID Aplikasi Google Play Store', '')
+jumlah_ulasan_input = st.sidebar.number_input('Jumlah ulasan yang ingin di-scrape', min_value=1, max_value=1000, value=100, step=10)
 
-if uploaded_file:
-    data = pd.read_excel(uploaded_file)
-    data = data.dropna(subset=['content'])
-    data = data.drop_duplicates(subset=['content'])
-
-    # Buat objek stemmer di sini
-    factory = StemmerFactory()
-    stemmer = factory.create_stemmer()
-
-    # Proses data
-    data['content'] = data['content'].apply(clean_text)
-    data = data[data['content'].apply(lambda x: len(str(x).split()) >= 3)]
-    data['tidak_frasa'] = data['content'].apply(lambda x: [f"{w} {x.split()[i+1]}" for i, w in enumerate(x.split()) if w.lower() == 'tidak'] if isinstance(x, str) else [])
-    df_terfilter = data[data['tidak_frasa'].apply(bool)]
-    df_terfilter['norm_tidak'] = df_terfilter['content'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
-    data.update(df_terfilter)
-
-    kamus_normalisasi = pd.read_excel('kamus/kbba_komplit.xlsx').set_index('non_baku')['baku'].to_dict()
-    data['normalisasi'] = data['content'].apply(lambda x: normalisasi(x, kamus_normalisasi))
-
-    stopwords_indonesian = pd.read_excel('kamus/stopword_dictionary.xlsx')['stopword'].tolist()
-    stopwords_indonesian.extend(['zok', 'lpk', 'zpk', 'brr', 'jrg', 'vrz', 'fnl', 'ttk', 'sgp', 'an', 'nya',
-                                 'bukalapak', 'dana', 'shopee', 'ovo', 'gopay'])
-    stopwords_exceptions = {'tidak', 'belakang', 'lama', 'laku', 'malah', 'seperti', 'dan', 'setelah', 'untuk',
-                            'sehingga', 'sedangkan', 'meski', 'karena'}
-    data['clean'] = data['normalisasi'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
-    
-    # Pisahkan imbuhan "-nya" dalam teks
-    data['clean'] = data['clean'].apply(pisahkan_imbuhan_nya)
-
-    # Stemming
-    data['stemmed'] = data['clean'].apply(stemmer.stem)
-
-    tfidf = TfidfVectorizer(max_features=1000)
-    tfidf.fit(data['clean'])
-    data['tfidf'] = list(tfidf.transform(data['clean']).toarray())
-
-    data['sentiment_score'] = data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
-    data['sentiment_polarity'] = data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
-
-    # Tambahkan filter untuk ulasan dengan kata minimal 3 dan hapus ulasan netral
-    data = data[data['sentiment_polarity'] != 'neutral']
-
-    # Konversi affected_words menjadi string
-    data['affected_words'] = data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
-    data['affected_words'] = data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
-
-    # Tampilkan hasil pada aplikasi
-    st.subheader('Hasil Sentimen Ulasan:')
-    st.write(data[['content', 'sentiment_polarity', 'affected_words']])
-
-    # Visualisasikan distribusi sentimen
-    st.subheader('Distribusi Sentimen:')
-    sentiment_counts = data['sentiment_polarity'].value_counts()
-    fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Adjust figure size and DPI
-    ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Adjust bar width if needed
-    ax.set_xlabel('Sentimen', fontsize=12)
-    ax.set_ylabel('Jumlah', fontsize=12)
-    ax.set_title('Distribusi Sentimen', fontsize=14)
-    ax.tick_params(axis='both', which='major', labelsize=10)  # Adjust tick parameters
-    st.pyplot(fig)
-
-    # Simpan model
-    model = {'lexicon_positive': lexicon_positive, 'lexicon_negative': lexicon_negative}
-    save_model(model, 'sentiment_model.pkl')
-    st.success('Model berhasil disimpan ke sentiment_model.pkl')
-else:
-    st.warning('Silakan masukkan ulasan atau unggah file Excel untuk analisis.')
-
-# Fungsi untuk scraping ulasan dari Google Play Store
-def scrape_reviews(app_id, jumlah_ulasan):
-    result, _ = reviews(
-        app_id,
-        lang='id',  # Bahasa Indonesia
-        count=jumlah_ulasan,
-        sort=Sort.NEWEST  # Mengurutkan berdasarkan ulasan terbaru
-    )
-    return pd.DataFrame(result)
-
-# Tambahkan definisi awal untuk scraped_data
-scraped_data = pd.DataFrame(columns=['content'])
-
-# Tambahkan bagian untuk scraping ulasan
-st.subheader('Scraping Ulasan dari Google Play Store')
-app_id_input = st.text_input('Masukkan ID Aplikasi Google Play Store', '')
-jumlah_ulasan_input = st.number_input('Jumlah ulasan yang ingin di-scrape', min_value=1, max_value=1000, value=100, step=10)
-
-if st.button('Scrape Ulasan'):
+if st.sidebar.button('Scrape Ulasan'):
     if app_id_input:
-        # Scrape ulasan dari Google Play Store
-        scraped_data = scrape_reviews(app_id_input, jumlah_ulasan_input)
+        # Scrap ulasan dari Google Play Store
+        reviews, _ = reviews(app_id_input, lang='id', count=jumlah_ulasan_input, sort=Sort.MOST_RELEVANT)
+        scraped_data = pd.DataFrame(reviews)
 
-        # Membersihkan nilai-nilai yang kosong atau NaN di 'clean'
+        # Membersihkan nilai 'clean' agar sesuai dengan fungsi preprocessing yang telah didefinisikan sebelumnya
         if 'clean' in scraped_data.columns:
             scraped_data['clean'].fillna('', inplace=True)
         else:
@@ -322,18 +248,28 @@ if st.button('Scrape Ulasan'):
         scraped_data['affected_words'] = scraped_data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
 
         # Tampilkan hasil pada aplikasi
-        st.subheader('Hasil Sentimen Ulasan:')
-        st.write(scraped_data[['content', 'sentiment_polarity', 'affected_words']])
+        st.sidebar.subheader('Hasil Sentimen Ulasan:')
+        st.sidebar.write(scraped_data[['content', 'sentiment_polarity', 'affected_words']])
 
         # Visualisasikan distribusi sentimen
-        st.subheader('Distribusi Sentimen:')
+        st.sidebar.subheader('Distribusi Sentimen:')
         sentiment_counts = scraped_data['sentiment_polarity'].value_counts()
-        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Adjust figure size and DPI
-        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Adjust bar width if needed
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
+        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
         ax.set_xlabel('Sentimen', fontsize=12)
         ax.set_ylabel('Jumlah', fontsize=12)
         ax.set_title('Distribusi Sentimen', fontsize=14)
-        ax.tick_params(axis='both', which='major', labelsize=10)  # Adjust tick parameters
-        st.pyplot(fig)
+        ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
+        st.sidebar.pyplot(fig)
     else:
-        st.warning('Silakan masukkan ID Aplikasi Google Play Store.')
+        st.sidebar.warning('Silakan masukkan ID Aplikasi Google Play Store.')
+
+# Menyimpan model saat aplikasi ditutup
+if st.button('Simpan Model'):
+    save_model({'lexicon_positive': lexicon_positive, 'lexicon_negative': lexicon_negative}, model_path)
+    st.success('Model berhasil disimpan di sentiment_model.pkl')
+
+# Footer
+st.sidebar.markdown("---")
+st.sidebar.markdown("© 2023 Imam Bahtiar")
+

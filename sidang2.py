@@ -97,7 +97,7 @@ def cari_dan_normalisasi_tidak(teks, kamus):
         hasil = []
         i = 0
         while i < len(kata_kata):
-            if kata_kata[i].lower() == 'tidak' and i + 1 < len(kata_kata):
+            if kata_kata[i].lower() == 'tidak' dan i + 1 < len(kata_kata):
                 frasa = f"{kata_kata[i]} {kata_kata[i+1]}"
                 hasil.append(kamus.get(frasa, frasa))
                 i += 2  # Lompat ke kata setelah frasa "tidak"
@@ -275,64 +275,50 @@ if uploaded_file:
 else:
     st.warning('Silakan masukkan ulasan atau unggah file Excel untuk analisis.')
 
-# Scrape data from Google Play Store
-st.subheader('Scrape Data Ulasan dari Google Play Store')
-app_id = st.text_input('Masukkan Google Play Store App ID', 'com.example.app')
-review_count = st.number_input('Masukkan jumlah ulasan yang ingin di-scrape', min_value=1, max_value=1000, value=100)
+# Fungsi untuk scraping ulasan dari Google Play Store
+def scrape_reviews(app_id, jumlah_ulasan):
+    result, _ = reviews(
+        app_id,
+        lang='id',  # Bahasa Indonesia
+        count=jumlah_ulasan,
+        sort=Sort.NEWEST  # Mengurutkan berdasarkan ulasan terbaru
+    )
+    return pd.DataFrame(result)
+
+# Tambahkan bagian untuk scraping ulasan
+st.subheader('Scraping Ulasan dari Google Play Store')
+app_id_input = st.text_input('Masukkan ID Aplikasi Google Play Store', '')
+jumlah_ulasan_input = st.number_input('Jumlah ulasan yang ingin di-scrape', min_value=1, max_value=1000, value=100, step=10)
 
 if st.button('Scrape Ulasan'):
-    with st.spinner('Meng-scrape data...'):
-        result, _ = reviews(
-            app_id,
-            lang='id', # specify language
-            country='id', # specify country
-            sort=Sort.MOST_RELEVANT, # sort by most relevant
-            count=review_count # number of reviews to fetch
-        )
+    if app_id_input:
+        scraped_data = scrape_reviews(app_id_input, jumlah_ulasan_input)
+        scraped_data = scraped_data[['content', 'score', 'thumbsUpCount']]
 
-        reviews_df = pd.DataFrame(result)
-        reviews_df['content'] = reviews_df['content'].apply(clean_text)
-        reviews_df = reviews_df[reviews_df['content'].apply(lambda x: len(str(x).split()) >= 3)]
-        reviews_df['tidak_frasa'] = reviews_df['content'].apply(lambda x: [f"{w} {x.split()[i+1]}" for i, w in enumerate(x.split()) if w.lower() == 'tidak'] if isinstance(x, str) else [])
-        df_terfilter = reviews_df[reviews_df['tidak_frasa'].apply(bool)]
-        df_terfilter['norm_tidak'] = df_terfilter['content'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
-        reviews_df.update(df_terfilter)
-
-        kamus_normalisasi = pd.read_excel('kamus/kbba_komplit.xlsx').set_index('non_baku')['baku'].to_dict()
-        reviews_df['normalisasi'] = reviews_df['content'].apply(lambda x: normalisasi(x, kamus_normalisasi))
-
-        stopwords_indonesian = pd.read_excel('kamus/stopword_dictionary.xlsx')['stopword'].tolist()
-        stopwords_indonesian.extend(['zok', 'lpk', 'zpk', 'brr', 'jrg', 'vrz', 'fnl', 'ttk', 'sgp', 'an', 'nya',
-                                     'bukalapak', 'dana', 'shopee', 'ovo', 'gopay'])
-        stopwords_exceptions = {'tidak', 'belakang', 'lama', 'laku', 'malah', 'seperti', 'dan', 'setelah', 'untuk',
-                                'sehingga', 'sedangkan', 'meski', 'karena'}
-        reviews_df['clean'] = reviews_df['normalisasi'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
-        
-        # Pisahkan imbuhan "-nya" dalam teks
-        reviews_df['clean'] = reviews_df['clean'].apply(pisahkan_imbuhan_nya)
+        # Bersihkan teks ulasan
+        scraped_data['clean'] = scraped_data['content'].apply(clean_text)
+        scraped_data['clean'] = scraped_data['clean'].apply(pisahkan_imbuhan_nya)
+        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
+        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
 
         # Stemming
-        factory = StemmerFactory()
-        stemmer = factory.create_stemmer()
-        reviews_df['stemmed'] = reviews_df['clean'].apply(stemmer.stem)
+        scraped_data['stemmed'] = scraped_data['clean'].apply(stemmer.stem)
 
-        reviews_df['sentiment_score'] = reviews_df['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
-        reviews_df['sentiment_polarity'] = reviews_df['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
-
-        # Tambahkan filter untuk ulasan dengan kata minimal 3 dan hapus ulasan netral
-        reviews_df = reviews_df[reviews_df['sentiment_polarity'] != 'neutral']
+        # Analisis sentimen
+        scraped_data['sentiment_score'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
+        scraped_data['sentiment_polarity'] = scraped_data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
 
         # Konversi affected_words menjadi string
-        reviews_df['affected_words'] = reviews_df['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
-        reviews_df['affected_words'] = reviews_df['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
+        scraped_data['affected_words'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
+        scraped_data['affected_words'] = scraped_data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
 
         # Tampilkan hasil pada aplikasi
-        st.subheader('Hasil Sentimen Ulasan yang Di-scrape:')
-        st.write(reviews_df[['content', 'sentiment_polarity', 'affected_words']])
+        st.subheader('Hasil Sentimen Ulasan:')
+        st.write(scraped_data[['content', 'sentiment_polarity', 'affected_words']])
 
         # Visualisasikan distribusi sentimen
         st.subheader('Distribusi Sentimen:')
-        sentiment_counts = reviews_df['sentiment_polarity'].value_counts()
+        sentiment_counts = scraped_data['sentiment_polarity'].value_counts()
         fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Adjust figure size and DPI
         ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Adjust bar width if needed
         ax.set_xlabel('Sentimen', fontsize=12)
@@ -340,3 +326,6 @@ if st.button('Scrape Ulasan'):
         ax.set_title('Distribusi Sentimen', fontsize=14)
         ax.tick_params(axis='both', which='major', labelsize=10)  # Adjust tick parameters
         st.pyplot(fig)
+    else:
+        st.warning('Silakan masukkan ID Aplikasi Google Play Store.')
+

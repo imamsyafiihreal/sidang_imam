@@ -285,6 +285,9 @@ def scrape_reviews(app_id, jumlah_ulasan):
     )
     return pd.DataFrame(result)
 
+# Tambahkan definisi awal untuk scraped_data
+scraped_data = pd.DataFrame(columns=['content'])
+
 # Tambahkan bagian untuk scraping ulasan
 st.subheader('Scraping Ulasan dari Google Play Store')
 app_id_input = st.text_input('Masukkan ID Aplikasi Google Play Store', '')
@@ -292,16 +295,14 @@ jumlah_ulasan_input = st.number_input('Jumlah ulasan yang ingin di-scrape', min_
 
 if st.button('Scrape Ulasan'):
     if app_id_input:
+        # Scrape ulasan dari Google Play Store
+        scraped_data = scrape_reviews(app_id_input, jumlah_ulasan_input)
+
         # Membersihkan nilai-nilai yang kosong atau NaN di 'clean'
-        # Pastikan bahwa 'clean' adalah bagian dari DataFrame scraped_data
         if 'clean' in scraped_data.columns:
-            # Membersihkan nilai-nilai yang kosong atau NaN di 'clean'
             scraped_data['clean'].fillna('', inplace=True)
         else:
-            # Jika 'clean' tidak ada dalam kolom, lakukan penanganan khusus sesuai kebutuhan aplikasi Anda
             st.warning("Kolom 'clean' tidak ditemukan dalam data yang di-scrapped.")
-
-
 
         # Bersihkan teks ulasan
         scraped_data['clean'] = scraped_data['content'].apply(clean_text)
@@ -336,4 +337,3 @@ if st.button('Scrape Ulasan'):
         st.pyplot(fig)
     else:
         st.warning('Silakan masukkan ID Aplikasi Google Play Store.')
-

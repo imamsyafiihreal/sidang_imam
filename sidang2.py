@@ -34,7 +34,7 @@ def normalisasi(teks, kamus):
     return ' '.join([kamus.get(k, k) for k in teks.split()]) if pd.notna(teks) else teks
 
 def hapus_stopwords(teks, stopwords_indonesian, stopwords_exceptions):
-    return ' '.join([word for word in str(teks).split() if word.lower() not in stopwords_indonesian or word.lower() in stopwords_exceptions]) if pd.notna(teks) else ''
+    return ' '.join([word for word in str(teks).split() if word.lower() not in stopwords_indonesian or word.lower() in stopwords_exceptions])
 
 def clean_and_combine(text):
     return ' '.join(text)
@@ -292,8 +292,10 @@ jumlah_ulasan_input = st.number_input('Jumlah ulasan yang ingin di-scrape', min_
 
 if st.button('Scrape Ulasan'):
     if app_id_input:
-        scraped_data = scrape_reviews(app_id_input, jumlah_ulasan_input)
-        scraped_data = scraped_data[['content', 'score', 'thumbsUpCount']]
+        # Membersihkan nilai-nilai yang kosong atau NaN di 'clean'
+        scraped_data['clean'].fillna('', inplace=True)
+        scraped_data['clean'] = scraped_data['clean'].astype(str)
+
 
         # Bersihkan teks ulasan
         scraped_data['clean'] = scraped_data['content'].apply(clean_text)

@@ -97,7 +97,7 @@ def cari_dan_normalisasi_tidak(teks, kamus):
         hasil = []
         i = 0
         while i < len(kata_kata):
-            if kata_kata[i].lower() == 'tidak' dan i + 1 < len(kata_kata):
+            if kata_kata[i].lower() == 'tidak' and i + 1 < len(kata_kata):
                 frasa = f"{kata_kata[i]} {kata_kata[i+1]}"
                 hasil.append(kamus.get(frasa, frasa))
                 i += 2  # Lompat ke kata setelah frasa "tidak"

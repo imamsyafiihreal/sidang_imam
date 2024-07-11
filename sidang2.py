@@ -293,8 +293,14 @@ jumlah_ulasan_input = st.number_input('Jumlah ulasan yang ingin di-scrape', min_
 if st.button('Scrape Ulasan'):
     if app_id_input:
         # Membersihkan nilai-nilai yang kosong atau NaN di 'clean'
-        scraped_data['clean'].fillna('', inplace=True)
-        scraped_data['clean'] = scraped_data['clean'].astype(str)
+        # Pastikan bahwa 'clean' adalah bagian dari DataFrame scraped_data
+        if 'clean' in scraped_data.columns:
+            # Membersihkan nilai-nilai yang kosong atau NaN di 'clean'
+            scraped_data['clean'].fillna('', inplace=True)
+        else:
+            # Jika 'clean' tidak ada dalam kolom, lakukan penanganan khusus sesuai kebutuhan aplikasi Anda
+            st.warning("Kolom 'clean' tidak ditemukan dalam data yang di-scrapped.")
+
 
 
         # Bersihkan teks ulasan

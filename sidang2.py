@@ -175,7 +175,7 @@ kamus_normalisasi_tidak = pd.read_excel('kamus/kamus_tidak.xlsx').set_index('fra
 
 # Input pengguna untuk ulasan baru
 st.subheader('Analisis Ulasan Baru')
-user_input = st.text_area('Masukkan ulasan Anda (satu per baris)', '')
+user_input = st.text_area('Masukkan ulasan Anda (satu per baris) id.co.aviana.m_pulsa', '')
 
 # Tambahkan tombol "Tampilkan Hasil Sentimen" yang selalu ada
 if st.button('Tampilkan Hasil Sentimen'):

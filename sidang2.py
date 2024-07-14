@@ -216,6 +216,8 @@ if st.button('Tampilkan Hasil Sentimen'):
         sentiment_counts = result_df['lexicon_sentiment'].value_counts()
         fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
         ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
+        for i, count in enumerate(sentiment_counts.values):
+            ax.text(i, count, str(count), ha='center', va='bottom', fontsize=12)  # Menambahkan total di atas setiap bar
         ax.set_xlabel('Sentimen', fontsize=12)
         ax.set_ylabel('Jumlah', fontsize=12)
         ax.set_title('Distribusi Sentimen', fontsize=14)
@@ -255,6 +257,8 @@ if st.sidebar.button('Scrape Ulasan'):
         sentiment_counts = scraped_data['sentiment_polarity'].value_counts()
         fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
         ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
+        for i, count in enumerate(sentiment_counts.values):
+            ax.text(i, count, str(count), ha='center', va='bottom', fontsize=12)  # Menambahkan total di atas setiap bar
         ax.set_xlabel('Sentimen', fontsize=12)
         ax.set_ylabel('Jumlah', fontsize=12)
         ax.set_title('Distribusi Sentimen', fontsize=14)

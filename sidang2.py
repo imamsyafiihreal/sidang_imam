@@ -225,26 +225,26 @@ if st.sidebar.button('Scrape Ulasan'):
         scraped_data = pd.DataFrame(reviews)
 
         # Membersihkan nilai 'clean' agar sesuai dengan fungsi preprocessing yang telah didefinisikan sebelumnya
-        if 'clean' in scraped_data.columns:
-            scraped_data['clean'].fillna('', inplace=True)
+        if 'content' in scraped_data.columns:
+            scraped_data['content'].fillna('', inplace=True)
         else:
-            st.warning("Kolom 'clean' tidak ditemukan dalam data yang di-scrapped.")
+            st.warning("Kolom 'content' tidak ditemukan dalam data yang di-scrapped.")
 
         # Bersihkan teks ulasan
-        scraped_data['clean'] = scraped_data['content'].apply(clean_text)
-        scraped_data['clean'] = scraped_data['clean'].apply(pisahkan_imbuhan_nya)
-        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
-        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
+        scraped_data['content'] = scraped_data['content'].apply(clean_text)
+        scraped_data['content'] = scraped_data['content'].apply(pisahkan_imbuhan_nya)
+        scraped_data['content'] = scraped_data['content'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
+        scraped_data['content'] = scraped_data['content'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
 
         # Stemming
-        scraped_data['stemmed'] = scraped_data['clean'].apply(stemmer.stem)
+        scraped_data['stemmed'] = scraped_data['content'].apply(stemmer.stem)
 
         # Analisis sentimen
-        scraped_data['sentiment_score'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
+        scraped_data['sentiment_score'] = scraped_data['content'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
         scraped_data['sentiment_polarity'] = scraped_data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
 
         # Konversi affected_words menjadi string
-        scraped_data['affected_words'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
+        scraped_data['affected_words'] = scraped_data['content'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
         scraped_data['affected_words'] = scraped_data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
 
         # Tampilkan hasil pada aplikasi

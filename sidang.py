@@ -8,14 +8,9 @@ import matplotlib.pyplot as plt
 import pickle
 import os
 import base64
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.svm import SVC
-from sklearn.model_selection import cross_val_score, StratifiedKFold, KFold, cross_validate
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, classification_report
-from sklearn.utils import shuffle
-from nltk.tokenize import word_tokenize
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from Sastrawi.Stemmer.StemmerFactory import StemmerFactory
-from tqdm import tqdm
+from google_play_scraper import Sort, reviews
 
 # Set the NLTK data path
 nltk.data.path.append('./nltk_data')
@@ -33,7 +28,7 @@ def normalisasi(teks, kamus):
     return ' '.join([kamus.get(k, k) for k in teks.split()]) if pd.notna(teks) else teks
 
 def hapus_stopwords(teks, stopwords_indonesian, stopwords_exceptions):
-    return ' '.join([word for word in str(teks).split() if word.lower() not in stopwords_indonesian or word.lower() in stopwords_exceptions]) if pd.notna(teks) else ''
+    return ' '.join([word for word in str(teks).split() if word.lower() not in stopwords_indonesian or word.lower() in stopwords_exceptions])
 
 def clean_and_combine(text):
     return ' '.join(text)
@@ -65,30 +60,6 @@ def load_model(filename):
     with open(filename, 'rb') as file:
         return pickle.load(file)
 
-def train_evaluate_svm(X, y, kernel, C, cv):
-    svm = SVC(kernel=kernel, C=C, random_state=42)
-    skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
-    scores = cross_val_score(svm, X, y, cv=skf, scoring='accuracy')
-    svm.fit(X, y)
-    y_pred = cross_val_score(svm, X, y, cv=skf, scoring='accuracy')
-    cm = confusion_matrix(y, svm.predict(X))
-    return scores, cm
-
-def evaluate_svm_kfold(X, y, k=10, kernel='linear', C=1.0, gamma='scale'):
-    model = SVC(kernel=kernel, C=C, gamma=gamma)
-    kf = KFold(n_splits=k, shuffle=True, random_state=42)
-    scoring = ['accuracy', 'precision_weighted', 'recall_weighted', 'f1_weighted']
-    scores = cross_validate(model, X, y, cv=kf, scoring=scoring, n_jobs=-1, return_train_score=False)
-    return scores, kf.split(X, y), model
-
-def process_fold(X, y, train_index, test_index, model):
-    X_train, X_test = X.iloc[train_index], X.iloc[test_index]
-    y_train, y_test = y.iloc[train_index], y.iloc[test_index]
-    model.fit(X_train, y_train)
-    y_pred = model.predict(X_test)
-    cm = confusion_matrix(y_test, y_pred)
-    return cm
-
 # Fungsi normalisasi untuk frasa "tidak"
 def cari_dan_normalisasi_tidak(teks, kamus):
     if isinstance(teks, str):
@@ -103,7 +74,7 @@ def cari_dan_normalisasi_tidak(teks, kamus):
             else:
                 hasil.append(kata_kata[i])
                 i += 1
-        return ' '.join(hasil)
+        return ' ' .join(hasil)
     return teks
 
 # Fungsi untuk memisahkan imbuhan "-nya"
@@ -172,104 +143,118 @@ else:
 # Definisikan kamus normalisasi "tidak"
 kamus_normalisasi_tidak = pd.read_excel('kamus/kamus_tidak.xlsx').set_index('frasa')['normalisasi'].to_dict()
 
+# Load stopwords
+stopwords_df = pd.read_excel('kamus/stopword_dictionary.xlsx')
+stopwords_indonesian = stopwords_df['stopword'].tolist()
+stopwords_exceptions = []
+
+# Buat objek stemmer di sini
+factory = StemmerFactory()
+stemmer = factory.create_stemmer()
+
+# Fungsi untuk melakukan preprocessing teks
+def preprocess_text(text, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer):
+    text = clean_text(text)
+    text = pisahkan_imbuhan_nya(text)
+    text = cari_dan_normalisasi_tidak(text, kamus_normalisasi_tidak)
+    text = hapus_stopwords(text, stopwords_indonesian, stopwords_exceptions)
+    text = stemmer.stem(text)
+    return text
+
 # Input pengguna untuk ulasan baru
 st.subheader('Analisis Ulasan Baru')
-user_input = st.text_area('Masukkan ulasan Anda (satu per baris)', '')
+user_input = st.text_area('Masukkan ulasan Anda (satu per baris) id.co.aviana.m_pulsa', '')
+
+# Tambahkan fitur unggah file
+st.subheader('Unggah File Ulasan')
+uploaded_file = st.file_uploader("Unggah file ulasan dalam format CSV", type="csv")
+
+# Fungsi untuk memproses file yang diunggah
+def process_uploaded_file(file):
+    df = pd.read_csv(file)
+    if 'content' in df.columns:
+        return df['content'].tolist()
+    else:
+        st.error("File tidak memiliki kolom 'content'. Pastikan file memiliki kolom 'content' yang berisi ulasan.")
+        return []
 
 # Tambahkan tombol "Tampilkan Hasil Sentimen" yang selalu ada
 if st.button('Tampilkan Hasil Sentimen'):
+    reviews_list = []
     if user_input:
-        # Buat objek stemmer di sini
-        factory = StemmerFactory()
-        stemmer = factory.create_stemmer()
-        
+        reviews_list = user_input.split('\n')
+    
+    if uploaded_file:
+        reviews_list.extend(process_uploaded_file(uploaded_file))
+    
+    if reviews_list:
         scores = []
-        for review in user_input.split('\n'):
-            review_cleaned = clean_text(review)
-            review_separated = pisahkan_imbuhan_nya(review_cleaned)
-            review_normalized = cari_dan_normalisasi_tidak(review_separated, kamus_normalisasi_tidak)
-            score, polarity, affected_words = sentiment_lexicon(review_normalized, lexicon_positive, lexicon_negative)
+        for review in reviews_list:
+            review_preprocessed = preprocess_text(review, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer)
+            score, polarity, affected_words = sentiment_lexicon(review_preprocessed, lexicon_positive, lexicon_negative)
             affected_words_str = ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in affected_words])
             scores.append((review, score, polarity, affected_words_str))
 
         # Membuat DataFrame untuk menampilkan hasil dalam bentuk tabel
         result_df = pd.DataFrame(scores, columns=['content', 'score', 'sentiment', 'affected_words'])
-        result_df['stemmed'] = result_df['content'].apply(lambda x: stemmer.stem(x))
         result_df['lexicon_sentiment'] = result_df['score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
 
-        st.write(result_df)
+        st.write(result_df[['content', 'lexicon_sentiment', 'affected_words']])
+
+        # Visualisasikan distribusi sentimen
+        st.subheader('Distribusi Sentimen')
+        sentiment_counts = result_df['lexicon_sentiment'].value_counts()
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
+        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
+        for i, count in enumerate(sentiment_counts.values):
+            ax.text(i, count, str(count), ha='center', va='bottom', fontsize=12)  # Menambahkan total di atas setiap bar
+        ax.set_xlabel('Sentimen', fontsize=12)
+        ax.set_ylabel('Jumlah', fontsize=12)
+        ax.set_title('Distribusi Sentimen', fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
+        st.pyplot(fig)
     else:
-        st.warning('Silakan masukkan ulasan untuk dianalisis.')
+        st.warning('Silakan masukkan ulasan atau unggah file untuk menganalisis sentimen.')
 
-# Fungsi untuk analisis batch
-st.subheader('Analisis Batch Ulasan dari File Excel')
-uploaded_file = st.file_uploader("Unggah file Excel dengan kolom 'content'", type=["xlsx"])
+# Ambil ulasan dari Google Play Store
+st.subheader('Ambil Ulasan dari Google Play Store')
+number_of_reviews = st.selectbox('Pilih jumlah ulasan yang ingin diambil', [50, 100, 150, 200, 250, 300, 350, 400, 450, 500], index=2)
+if st.button('Ambil Ulasan'):
+    with st.spinner('Mengambil ulasan...'):
+        reviews_data = []
+        for score in range(1, 6):
+            rvs, _ = reviews(
+                'id.co.aviana.m_pulsa',
+                lang='id',
+                country='id',
+                sort=Sort.NEWEST,
+                count=number_of_reviews // 10,
+                filter_score_with=score
+            )
+            reviews_data.extend(rvs)
 
-if uploaded_file:
-    data = pd.read_excel(uploaded_file)
-    data = data.dropna(subset=['content'])
-    data = data.drop_duplicates(subset=['content'])
+        reviews_df = pd.DataFrame(reviews_data)
+        reviews_df['content'] = reviews_df['content'].apply(clean_text)
+        st.write(reviews_df)
 
-    # Buat objek stemmer di sini
-    factory = StemmerFactory()
-    stemmer = factory.create_stemmer()
+        reviews_df['preprocessing'] = reviews_df['content'].apply(lambda x: preprocess_text(x, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer))
+        st.write(reviews_df[['content','preprocessing']].head())
 
-    # Proses data
-    data['content'] = data['content'].apply(clean_text)
-    data = data[data['content'].apply(lambda x: len(str(x).split()) >= 3)]
-    data['tidak_frasa'] = data['content'].apply(lambda x: [f"{w} {x.split()[i+1]}" for i, w in enumerate(x.split()) if w.lower() == 'tidak'] if isinstance(x, str) else [])
-    df_terfilter = data[data['tidak_frasa'].apply(bool)]
-    df_terfilter['norm_tidak'] = df_terfilter['content'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
-    data.update(df_terfilter)
+        scores = []
+        for review in reviews_df['preprocessing']:
+            score, polarity, affected_words = sentiment_lexicon(review, lexicon_positive, lexicon_negative)
+            affected_words_str = ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in affected_words])
+            scores.append((score, polarity, affected_words_str))
 
-    kamus_normalisasi = pd.read_excel('kamus/kbba_komplit.xlsx').set_index('non_baku')['baku'].to_dict()
-    data['normalisasi'] = data['content'].apply(lambda x: normalisasi(x, kamus_normalisasi))
+        reviews_df['score'], reviews_df['sentiment'], reviews_df['affected_words'] = zip(*scores)
+        reviews_df['lexicon_sentiment'] = reviews_df['score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
 
-    stopwords_indonesian = pd.read_excel('kamus/stopword_dictionary.xlsx')['stopword'].tolist()
-    stopwords_indonesian.extend(['zok', 'lpk', 'zpk', 'brr', 'jrg', 'vrz', 'fnl', 'ttk', 'sgp', 'an', 'nya',
-                                 'bukalapak', 'dana', 'shopee', 'ovo', 'gopay'])
-    stopwords_exceptions = {'tidak', 'belakang', 'lama', 'laku', 'malah', 'seperti', 'dan', 'setelah', 'untuk',
-                            'sehingga', 'sedangkan', 'meski', 'karena'}
-    data['clean'] = data['normalisasi'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
-    
-    # Pisahkan imbuhan "-nya" dalam teks
-    data['clean'] = data['clean'].apply(pisahkan_imbuhan_nya)
+        st.write(reviews_df[['content', 'lexicon_sentiment', 'affected_words']])
 
-    # Stemming
-    data['stemmed'] = data['clean'].apply(stemmer.stem)
-
-    tfidf = TfidfVectorizer(max_features=1000)
-    tfidf.fit(data['clean'])
-    data['tfidf'] = list(tfidf.transform(data['clean']).toarray())
-
-    data['sentiment_score'] = data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
-    data['sentiment_polarity'] = data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
-
-    # Tambahkan filter untuk ulasan dengan kata minimal 3 dan hapus ulasan netral
-    data = data[data['sentiment_polarity'] != 'neutral']
-
-    # Konversi affected_words menjadi string
-    data['affected_words'] = data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
-    data['affected_words'] = data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
-
-    # Tampilkan hasil pada aplikasi
-    st.subheader('Hasil Sentimen Ulasan:')
-    st.write(data[['content', 'sentiment_polarity', 'affected_words']])
-
-    # Visualisasikan distribusi sentimen
-    st.subheader('Distribusi Sentimen:')
-    sentiment_counts = data['sentiment_polarity'].value_counts()
-    fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Adjust figure size and DPI
-    ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Adjust bar width if needed
-    ax.set_xlabel('Sentimen', fontsize=12)
-    ax.set_ylabel('Jumlah', fontsize=12)
-    ax.set_title('Distribusi Sentimen', fontsize=14)
-    ax.tick_params(axis='both', which='major', labelsize=10)  # Adjust tick parameters
-    st.pyplot(fig)
-
-    # Simpan model
-    model = {'lexicon_positive': lexicon_positive, 'lexicon_negative': lexicon_negative}
-    save_model(model, 'sentiment_model.pkl')
-    st.success('Model berhasil disimpan ke sentiment_model.pkl')
-else:
-    st.warning('Silakan masukkan ulasan atau unggah file Excel untuk analisis.')
+        sentiment_counts = reviews_df['lexicon_sentiment'].value_counts()
+        fig, ax = plt.subplots()
+        ax.bar(sentiment_counts.index, sentiment_counts.values)
+        ax.set_xlabel('Sentimen')
+        ax.set_ylabel('Jumlah')
+        ax.set_title('Distribusi Sentimen')
+        st.pyplot(fig)

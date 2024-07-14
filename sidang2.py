@@ -260,6 +260,18 @@ if st.sidebar.button('Scrape Ulasan'):
         ax.set_title('Distribusi Sentimen', fontsize=14)
         ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
         st.sidebar.pyplot(fig)
+
+        # Menampilkan confusion matrix
+        st.sidebar.subheader('Confusion Matrix:')
+        # Ubah sentimen menjadi label numerik
+        scraped_data['sentiment_label'] = scraped_data['sentiment_polarity'].map(sentiment_mapping)
+        y_true = scraped_data['sentiment_label']
+        y_pred = scraped_data['clean'].apply(lambda x: sentiment_mapping(sentiment_lexicon(x, lexicon_positive, lexicon_negative)[1]))
+        
+        cm = confusion_matrix(y_true, y_pred, labels=[1, 0, -1])
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Positive', 'Neutral', 'Negative']).plot(ax=ax)
+        st.sidebar.pyplot(fig)
     else:
         st.sidebar.warning('Silakan masukkan ID Aplikasi Google Play Store.')
 

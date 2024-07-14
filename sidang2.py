@@ -97,7 +97,7 @@ def cari_dan_normalisasi_tidak(teks, kamus):
         hasil = []
         i = 0
         while i < len(kata_kata):
-            if kata_kata[i].lower() == 'tidak' and i + 1 < len(kata_kata):
+            if kata_kata[i].lower() == 'tidak' dan i + 1 < len(kata_kata):
                 frasa = f"{kata_kata[i]} {kata_kata[i+1]}"
                 hasil.append(kamus.get(frasa, frasa))
                 i += 2  # Lompat ke kata setelah frasa "tidak"
@@ -191,40 +191,14 @@ def preprocess_text(text, kamus_normalisasi_tidak, stopwords_indonesian, stopwor
     text = stemmer.stem(text)
     return text
 
-# Input pengguna untuk ulasan baru
-st.subheader('Analisis Ulasan Baru')
-user_input = st.text_area('Masukkan ulasan Anda (satu per baris) id.co.aviana.m_pulsa', '')
-
-# Tambahkan tombol "Tampilkan Hasil Sentimen" yang selalu ada
-if st.button('Tampilkan Hasil Sentimen'):
-    if user_input:
-        scores = []
-        for review in user_input.split('\n'):
-            review_preprocessed = preprocess_text(review, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer)
-            score, polarity, affected_words = sentiment_lexicon(review_preprocessed, lexicon_positive, lexicon_negative)
-            affected_words_str = ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in affected_words])
-            scores.append((review, score, polarity, affected_words_str))
-
-        # Membuat DataFrame untuk menampilkan hasil dalam bentuk tabel
-        result_df = pd.DataFrame(scores, columns=['content', 'score', 'sentiment', 'affected_words'])
-        result_df['lexicon_sentiment'] = result_df['score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
-
-        st.write(result_df[['content', 'lexicon_sentiment', 'affected_words']])
-
-        # Visualisasikan distribusi sentimen
-        st.subheader('Distribusi Sentimen')
-        sentiment_counts = result_df['lexicon_sentiment'].value_counts()
-        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
-        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
-        for i, count in enumerate(sentiment_counts.values):
-            ax.text(i, count, str(count), ha='center', va='bottom', fontsize=12)  # Menambahkan total di atas setiap bar
-        ax.set_xlabel('Sentimen', fontsize=12)
-        ax.set_ylabel('Jumlah', fontsize=12)
-        ax.set_title('Distribusi Sentimen', fontsize=14)
-        ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
-        st.pyplot(fig)
-    else:
-        st.warning('Silakan masukkan ulasan untuk menganalisis sentimen.')
+# Fungsi untuk memproses ulasan
+def process_reviews(data, lexicon_positive, lexicon_negative, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer):
+    data['clean'] = data['content'].apply(lambda x: preprocess_text(x, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer))
+    data['sentiment_score'] = data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
+    data['sentiment_polarity'] = data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
+    data['affected_words'] = data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
+    data['affected_words'] = data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
+    return data
 
 # Sidebar untuk scraping ulasan dari Google Play Store
 st.sidebar.subheader('Scraping Ulasan dari Google Play Store')
@@ -233,51 +207,66 @@ jumlah_ulasan_input = st.sidebar.number_input('Jumlah ulasan yang ingin di-scrap
 
 if st.sidebar.button('Scrape Ulasan'):
     if app_id_input:
-        # Scrap ulasan dari Google Play Store
         scraped_reviews, _ = reviews(app_id_input, lang='id', count=jumlah_ulasan_input, sort=Sort.MOST_RELEVANT)
         scraped_data = pd.DataFrame(scraped_reviews)
-
-        # Membersihkan teks ulasan
-        scraped_data['clean'] = scraped_data['content'].apply(lambda x: preprocess_text(x, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer))
-
-        # Analisis sentimen
-        scraped_data['sentiment_score'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
-        scraped_data['sentiment_polarity'] = scraped_data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
-
-        # Konversi affected_words menjadi string
-        scraped_data['affected_words'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
-        scraped_data['affected_words'] = scraped_data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
-
-        # Tampilkan hasil pada aplikasi
+        processed_data = process_reviews(scraped_data, lexicon_positive, lexicon_negative, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer)
         st.sidebar.subheader('Hasil Sentimen Ulasan:')
-        st.sidebar.write(scraped_data[['content', 'sentiment_polarity', 'affected_words']])
-
-        # Visualisasikan distribusi sentimen
+        st.sidebar.write(processed_data[['content', 'sentiment_polarity', 'affected_words']])
         st.sidebar.subheader('Distribusi Sentimen:')
-        sentiment_counts = scraped_data['sentiment_polarity'].value_counts()
-        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
-        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
+        sentiment_counts = processed_data['sentiment_polarity'].value_counts()
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)
+        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)
         for i, count in enumerate(sentiment_counts.values):
-            ax.text(i, count, str(count), ha='center', va='bottom', fontsize=12)  # Menambahkan total di atas setiap bar
+            ax.text(i, count, str(count), ha='center', va='bottom', fontsize=12)
         ax.set_xlabel('Sentimen', fontsize=12)
         ax.set_ylabel('Jumlah', fontsize=12)
         ax.set_title('Distribusi Sentimen', fontsize=14)
-        ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
+        ax.tick_params(axis='both', which='major', labelsize=10)
         st.sidebar.pyplot(fig)
 
-        # Menampilkan confusion matrix
         st.sidebar.subheader('Confusion Matrix:')
-        # Ubah sentimen menjadi label numerik
-        scraped_data['sentiment_label'] = scraped_data['sentiment_polarity'].map(sentiment_mapping)
-        y_true = scraped_data['sentiment_label']
-        y_pred = scraped_data['clean'].apply(lambda x: sentiment_mapping(sentiment_lexicon(x, lexicon_positive, lexicon_negative)[1]))
-        
+        processed_data['sentiment_label'] = processed_data['sentiment_polarity'].map(sentiment_mapping)
+        y_true = processed_data['sentiment_label']
+        y_pred = processed_data['clean'].apply(lambda x: sentiment_mapping(sentiment_lexicon(x, lexicon_positive, lexicon_negative)[1]))
         cm = confusion_matrix(y_true, y_pred, labels=[1, 0, -1])
         fig, ax = plt.subplots(figsize=(6, 6))
         ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Positive', 'Neutral', 'Negative']).plot(ax=ax)
         st.sidebar.pyplot(fig)
     else:
         st.sidebar.warning('Silakan masukkan ID Aplikasi Google Play Store.')
+
+# Fitur unggah file
+st.subheader('Unggah File Ulasan (CSV)')
+uploaded_file = st.file_uploader('Pilih file CSV', type='csv')
+
+if uploaded_file is not None:
+    uploaded_data = pd.read_csv(uploaded_file)
+    if 'content' in uploaded_data.columns:
+        processed_uploaded_data = process_reviews(uploaded_data, lexicon_positive, lexicon_negative, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer)
+        st.write(processed_uploaded_data[['content', 'sentiment_polarity', 'affected_words']])
+        
+        st.subheader('Distribusi Sentimen')
+        sentiment_counts = processed_uploaded_data['sentiment_polarity'].value_counts()
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)
+        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)
+        for i, count in enumerate(sentiment_counts.values):
+            ax.text(i, count, str(count), ha='center', va='bottom', fontsize=12)
+        ax.set_xlabel('Sentimen', fontsize=12)
+        ax.set_ylabel('Jumlah', fontsize=12)
+        ax.set_title('Distribusi Sentimen', fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=10)
+        st.pyplot(fig)
+
+        st.subheader('Confusion Matrix')
+        processed_uploaded_data['sentiment_label'] = processed_uploaded_data['sentiment_polarity'].map(sentiment_mapping)
+        y_true = processed_uploaded_data['sentiment_label']
+        y_pred = processed_uploaded_data['clean'].apply(lambda x: sentiment_mapping(sentiment_lexicon(x, lexicon_positive, lexicon_negative)[1]))
+        cm = confusion_matrix(y_true, y_pred, labels=[1, 0, -1])
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=['Positive', 'Neutral', 'Negative']).plot(ax=ax)
+        st.pyplot(fig)
+    else:
+        st.warning('File CSV harus memiliki kolom "content".')
 
 # Footer
 st.sidebar.markdown("---")

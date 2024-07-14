@@ -173,6 +173,11 @@ else:
 # Definisikan kamus normalisasi "tidak"
 kamus_normalisasi_tidak = pd.read_excel('kamus/kamus_tidak.xlsx').set_index('frasa')['normalisasi'].to_dict()
 
+# Load stopwords
+stopwords_df = pd.read_excel('kamus/stopword_dictionary.xlsx')
+stopwords_indonesian = stopwords_df['stopword'].tolist()
+stopwords_exceptions = []
+
 # Input pengguna untuk ulasan baru
 st.subheader('Analisis Ulasan Baru')
 user_input = st.text_area('Masukkan ulasan Anda (satu per baris) id.co.aviana.m_pulsa', '')
@@ -212,9 +217,6 @@ if st.button('Tampilkan Hasil Sentimen'):
         st.pyplot(fig)
     else:
         st.warning('Silakan masukkan ulasan untuk menganalisis sentimen.')
-# Muat stopwords
-stopwords_indonesian = set(nltk.corpus.stopwords.words('indonesian'))
-stopwords_exceptions = set(['tidak', 'bukan'])  # Add any exceptions as needed
 
 # Sidebar untuk scraping ulasan dari Google Play Store
 st.sidebar.subheader('Scraping Ulasan dari Google Play Store')
@@ -227,42 +229,43 @@ if st.sidebar.button('Scrape Ulasan'):
         reviews, _ = reviews(app_id_input, lang='id', count=jumlah_ulasan_input, sort=Sort.MOST_RELEVANT)
         scraped_data = pd.DataFrame(reviews)
 
-        # Membersihkan teks ulasan
-        if 'content' in scraped_data.columns:
-            scraped_data['clean'] = scraped_data['content'].apply(clean_text)
-            scraped_data['clean'] = scraped_data['clean'].apply(pisahkan_imbuhan_nya)
-            scraped_data['clean'] = scraped_data['clean'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
-            scraped_data['clean'] = scraped_data['clean'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
-
-            # Buat objek stemmer di sini
-            factory = StemmerFactory()
-            stemmer = factory.create_stemmer()
-            scraped_data['stemmed'] = scraped_data['clean'].apply(stemmer.stem)
-
-            # Analisis sentimen
-            scraped_data['sentiment_score'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
-            scraped_data['sentiment_polarity'] = scraped_data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
-
-            # Konversi affected_words menjadi string
-            scraped_data['affected_words'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
-            scraped_data['affected_words'] = scraped_data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
-
-            # Tampilkan hasil pada aplikasi
-            st.sidebar.subheader('Hasil Sentimen Ulasan:')
-            st.sidebar.write(scraped_data[['content', 'sentiment_polarity', 'affected_words']])
-
-            # Visualisasikan distribusi sentimen
-            st.sidebar.subheader('Distribusi Sentimen:')
-            sentiment_counts = scraped_data['sentiment_polarity'].value_counts()
-            fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
-            ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
-            ax.set_xlabel('Sentimen', fontsize=12)
-            ax.set_ylabel('Jumlah', fontsize=12)
-            ax.set_title('Distribusi Sentimen', fontsize=14)
-            ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
-            st.sidebar.pyplot(fig)
+        # Membersihkan nilai 'clean' agar sesuai dengan fungsi preprocessing yang telah didefinisikan sebelumnya
+        if 'clean' in scraped_data.columns:
+            scraped_data['clean'].fillna('', inplace=True)
         else:
-            st.sidebar.warning("Kolom 'content' tidak ditemukan dalam data yang di-scrapped.")
+            st.warning("Kolom 'clean' tidak ditemukan dalam data yang di-scrapped.")
+
+        # Bersihkan teks ulasan
+        scraped_data['clean'] = scraped_data['content'].apply(clean_text)
+        scraped_data['clean'] = scraped_data['clean'].apply(pisahkan_imbuhan_nya)
+        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
+        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
+
+        # Stemming
+        scraped_data['stemmed'] = scraped_data['clean'].apply(stemmer.stem)
+
+        # Analisis sentimen
+        scraped_data['sentiment_score'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])
+        scraped_data['sentiment_polarity'] = scraped_data['sentiment_score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
+
+        # Konversi affected_words menjadi string
+        scraped_data['affected_words'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[2])
+        scraped_data['affected_words'] = scraped_data['affected_words'].apply(lambda words: ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in words]))
+
+        # Tampilkan hasil pada aplikasi
+        st.sidebar.subheader('Hasil Sentimen Ulasan:')
+        st.sidebar.write(scraped_data[['content', 'sentiment_polarity', 'affected_words']])
+
+        # Visualisasikan distribusi sentimen
+        st.sidebar.subheader('Distribusi Sentimen:')
+        sentiment_counts = scraped_data['sentiment_polarity'].value_counts()
+        fig, ax = plt.subplots(figsize=(5, 4), dpi=100)  # Sesuaikan ukuran dan DPI gambar
+        ax.bar(sentiment_counts.index, sentiment_counts.values, width=0.4)  # Sesuaikan lebar bar jika diperlukan
+        ax.set_xlabel('Sentimen', fontsize=12)
+        ax.set_ylabel('Jumlah', fontsize=12)
+        ax.set_title('Distribusi Sentimen', fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=10)  # Sesuaikan parameter tick
+        st.sidebar.pyplot(fig)
     else:
         st.sidebar.warning('Silakan masukkan ID Aplikasi Google Play Store.')
 

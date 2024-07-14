@@ -228,7 +228,7 @@ if st.button('Ambil Ulasan'):
                 lang='id',
                 country='id',
                 sort=Sort.NEWEST,
-                count=number_of_reviews // 5,
+                count=number_of_reviews // 10,
                 filter_score_with=score
             )
             reviews_data.extend(rvs)

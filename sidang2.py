@@ -74,7 +74,7 @@ def cari_dan_normalisasi_tidak(teks, kamus):
             else:
                 hasil.append(kata_kata[i])
                 i += 1
-        return ' '.join(hasil)
+        return ' ' .join(hasil)
     return teks
 
 # Fungsi untuk memisahkan imbuhan "-nya"
@@ -218,6 +218,7 @@ if st.button('Tampilkan Hasil Sentimen'):
 
 # Ambil ulasan dari Google Play Store
 st.subheader('Ambil Ulasan dari Google Play Store')
+number_of_reviews = st.selectbox('Pilih jumlah ulasan yang ingin diambil', [100, 200, 300, 400, 500], index=2)
 if st.button('Ambil Ulasan'):
     with st.spinner('Mengambil ulasan...'):
         reviews_data = []
@@ -227,7 +228,7 @@ if st.button('Ambil Ulasan'):
                 lang='id',
                 country='id',
                 sort=Sort.NEWEST,
-                count=200 if score == 3 else 100,
+                count=number_of_reviews // 5,
                 filter_score_with=score
             )
             reviews_data.extend(rvs)
@@ -253,7 +254,7 @@ if st.button('Ambil Ulasan'):
         sentiment_counts = reviews_df['lexicon_sentiment'].value_counts()
         fig, ax = plt.subplots()
         ax.bar(sentiment_counts.index, sentiment_counts.values)
-        ax.set_xlabel('Sentiment')
-        ax.set_ylabel('Count')
-        ax.set_title('Sentiment Distribution')
+        ax.set_xlabel('Sentimen')
+        ax.set_ylabel('Jumlah')
+        ax.set_title('Distribusi Sentimen')
         st.pyplot(fig)

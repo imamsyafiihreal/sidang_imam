@@ -178,6 +178,19 @@ stopwords_df = pd.read_excel('kamus/stopword_dictionary.xlsx')
 stopwords_indonesian = stopwords_df['stopword'].tolist()
 stopwords_exceptions = []
 
+# Buat objek stemmer di sini
+factory = StemmerFactory()
+stemmer = factory.create_stemmer()
+
+# Fungsi untuk melakukan preprocessing teks
+def preprocess_text(text, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer):
+    text = clean_text(text)
+    text = pisahkan_imbuhan_nya(text)
+    text = cari_dan_normalisasi_tidak(text, kamus_normalisasi_tidak)
+    text = hapus_stopwords(text, stopwords_indonesian, stopwords_exceptions)
+    text = stemmer.stem(text)
+    return text
+
 # Input pengguna untuk ulasan baru
 st.subheader('Analisis Ulasan Baru')
 user_input = st.text_area('Masukkan ulasan Anda (satu per baris) id.co.aviana.m_pulsa', '')
@@ -185,22 +198,15 @@ user_input = st.text_area('Masukkan ulasan Anda (satu per baris) id.co.aviana.m_
 # Tambahkan tombol "Tampilkan Hasil Sentimen" yang selalu ada
 if st.button('Tampilkan Hasil Sentimen'):
     if user_input:
-        # Buat objek stemmer di sini
-        factory = StemmerFactory()
-        stemmer = factory.create_stemmer()
-        
         scores = []
         for review in user_input.split('\n'):
-            review_cleaned = clean_text(review)
-            review_separated = pisahkan_imbuhan_nya(review_cleaned)
-            review_normalized = cari_dan_normalisasi_tidak(review_separated, kamus_normalisasi_tidak)
-            score, polarity, affected_words = sentiment_lexicon(review_normalized, lexicon_positive, lexicon_negative)
+            review_preprocessed = preprocess_text(review, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer)
+            score, polarity, affected_words = sentiment_lexicon(review_preprocessed, lexicon_positive, lexicon_negative)
             affected_words_str = ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in affected_words])
             scores.append((review, score, polarity, affected_words_str))
 
         # Membuat DataFrame untuk menampilkan hasil dalam bentuk tabel
         result_df = pd.DataFrame(scores, columns=['content', 'score', 'sentiment', 'affected_words'])
-        result_df['stemmed'] = result_df['content'].apply(lambda x: stemmer.stem(x))
         result_df['lexicon_sentiment'] = result_df['score'].apply(lambda x: 'positive' if x > 0 else 'negative' if x < 0 else 'neutral')
 
         st.write(result_df[['content', 'lexicon_sentiment', 'affected_words']])
@@ -226,23 +232,11 @@ jumlah_ulasan_input = st.sidebar.number_input('Jumlah ulasan yang ingin di-scrap
 if st.sidebar.button('Scrape Ulasan'):
     if app_id_input:
         # Scrap ulasan dari Google Play Store
-        reviews, _ = reviews(app_id_input, lang='id', count=jumlah_ulasan_input, sort=Sort.MOST_RELEVANT)
-        scraped_data = pd.DataFrame(reviews)
+        scraped_reviews, _ = reviews(app_id_input, lang='id', count=jumlah_ulasan_input, sort=Sort.MOST_RELEVANT)
+        scraped_data = pd.DataFrame(scraped_reviews)
 
-        # Membersihkan nilai 'clean' agar sesuai dengan fungsi preprocessing yang telah didefinisikan sebelumnya
-        if 'clean' in scraped_data.columns:
-            scraped_data['clean'].fillna('', inplace=True)
-        else:
-            st.warning("Kolom 'clean' tidak ditemukan dalam data yang di-scrapped.")
-
-        # Bersihkan teks ulasan
-        scraped_data['clean'] = scraped_data['content'].apply(clean_text)
-        scraped_data['clean'] = scraped_data['clean'].apply(pisahkan_imbuhan_nya)
-        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: cari_dan_normalisasi_tidak(x, kamus_normalisasi_tidak))
-        scraped_data['clean'] = scraped_data['clean'].apply(lambda x: hapus_stopwords(x, stopwords_indonesian, stopwords_exceptions))
-
-        # Stemming
-        scraped_data['stemmed'] = scraped_data['clean'].apply(stemmer.stem)
+        # Membersihkan teks ulasan
+        scraped_data['clean'] = scraped_data['content'].apply(lambda x: preprocess_text(x, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer))
 
         # Analisis sentimen
         scraped_data['sentiment_score'] = scraped_data['clean'].apply(lambda x: sentiment_lexicon(x, lexicon_positive, lexicon_negative)[0])

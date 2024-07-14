@@ -271,5 +271,3 @@ if st.button('Simpan Model'):
 
 # Footer
 st.sidebar.markdown("---")
-st.sidebar.markdown("© 2023 Imam Bahtiar")
-

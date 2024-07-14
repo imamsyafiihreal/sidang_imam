@@ -235,13 +235,13 @@ if st.button('Ambil Ulasan'):
 
         reviews_df = pd.DataFrame(reviews_data)
         reviews_df['content'] = reviews_df['content'].apply(clean_text)
-        st.write(reviews_df.head())
+        st.write(reviews_df)
 
-        reviews_df['preprocessed_content'] = reviews_df['content'].apply(lambda x: preprocess_text(x, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer))
-        st.write(reviews_df.head())
+        reviews_df['preprocessing'] = reviews_df['content'].apply(lambda x: preprocess_text(x, kamus_normalisasi_tidak, stopwords_indonesian, stopwords_exceptions, stemmer))
+        st.write(reviews_df[['content','preprocessing']].head())
 
         scores = []
-        for review in reviews_df['preprocessed_content']:
+        for review in reviews_df['preprocessing']:
             score, polarity, affected_words = sentiment_lexicon(review, lexicon_positive, lexicon_negative)
             affected_words_str = ', '.join([f"{word} ({sentiment}: {value})" for word, value, sentiment in affected_words])
             scores.append((score, polarity, affected_words_str))

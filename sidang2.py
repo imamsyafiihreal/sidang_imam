@@ -81,7 +81,6 @@ def evaluate_svm_kfold(X, y, k=10, kernel='linear', C=1.0, gamma='scale'):
     scoring = ['accuracy', 'precision_weighted', 'recall_weighted', 'f1_weighted']
     scores = cross_validate(model, X, y, cv=kf, scoring=scoring, n_jobs=-1, return_train_score=False)
     return scores, kf.split(X, y), model
-
 def process_fold(X, y, train_index, test_index, model):
     X_train, X_test = X.iloc[train_index], X.iloc[test_index]
     y_train, y_test = y.iloc[train_index], y.iloc[test_index]
@@ -97,7 +96,7 @@ def cari_dan_normalisasi_tidak(teks, kamus):
         hasil = []
         i = 0
         while i < len(kata_kata):
-            if kata_kata[i].lower() == 'tidak' dan i + 1 < len(kata_kata):
+            if kata_kata[i].lower() == 'tidak' and + 1 < len(kata_kata):
                 frasa = f"{kata_kata[i]} {kata_kata[i+1]}"
                 hasil.append(kamus.get(frasa, frasa))
                 i += 2  # Lompat ke kata setelah frasa "tidak"

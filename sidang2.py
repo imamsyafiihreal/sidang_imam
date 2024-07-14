@@ -218,7 +218,7 @@ if st.button('Tampilkan Hasil Sentimen'):
 
 # Ambil ulasan dari Google Play Store
 st.subheader('Ambil Ulasan dari Google Play Store')
-number_of_reviews = st.selectbox('Pilih jumlah ulasan yang ingin diambil', [100, 200, 300, 400, 500], index=2)
+number_of_reviews = st.selectbox('Pilih jumlah ulasan yang ingin diambil', [50, 100, 150, 200, 250, 300, 350, 400, 450, 500], index=2)
 if st.button('Ambil Ulasan'):
     with st.spinner('Mengambil ulasan...'):
         reviews_data = []
